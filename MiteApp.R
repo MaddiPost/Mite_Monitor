@@ -1,10 +1,7 @@
-install.packages("shiny")
+
 library(shiny)
-install.packages("shinyWidgets")
 library(shinyWidgets)
-install.packages("tidyverse")
 library(tidyverse)
-install.packages("shinythemes")
 library(shinythemes)
 
 #Plan of attack:

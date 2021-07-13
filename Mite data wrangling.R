@@ -119,7 +119,10 @@ load_apiaries_barries <- function(barries) {
 apiaries_barries <- load_apiaries_barries(barries)
 
 apiaries <- dplyr::bind_rows(apiaries, apiaries_barries)
-mites <- dplyr::bind_rows(mites, midlands_mites, barries_mites)
+mites <- dplyr::bind_rows(mites, midlands_mites, barries_mites)%>% 
+  # Add Year + Month columns for later aggregation
+  dplyr::mutate(month = format(date, "%m"),
+                year = format(date, "%Y"))
 
 mites_location <- dplyr::left_join(mites, apiaries, by = c("beekeeper", "apiary")) %>% 
   dplyr::filter(!is.na(longitude)) %>% 

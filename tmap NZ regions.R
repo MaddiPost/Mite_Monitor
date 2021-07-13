@@ -21,7 +21,7 @@ ggplot() +
 ggplot() +
   geom_sf(data = mymap, aes(fill = )) +
   theme_bw() +
-  coord_sf(xlim = c(150.97, 180), ylim = c(-33.98, -33.79)) +
+  coord_sf(xlim = c(150.97, 180), ylim = c(-33.98, -.79)) +
   geom_sf(data = cent_nz)
 
 #create fake mite data

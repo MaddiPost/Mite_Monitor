@@ -2,16 +2,16 @@
 
 library(tidyverse)
 library(dplyr) # technically, this should no be needed as dplyr is part of the tidyverse, but R has been weird lately..
-library(tidyr)
-library(naniar)
+library(tidyr) # technically, this should no be needed as dplyr is part of the tidyverse, but R has been weird lately..
 library(janitor)
 
-# Copy / load BeeApp export files into the data_in directory before starting any of this!
+# Copy / load mite data files into the data_in directory before starting any of this!
 
-# set current BeeApp export files as inputs
+# set current mite data export files as inputs
 midlands <- "data_in/Midlands mite sample data up to strips in spring 2020.xlsx"
 mite_data <- "data_in/Complete Mite Monitor GP.xlsx"
 barries <- "data_in/Barries Honey Mite Monitor data collection.xlsx"
+hantz <- "data_in/Varroa Monitoring_Results_Hantz Honey_AUT21.xlsx"
 
 
 #### Step 1: load Midlands file, clean up some things, reshape / melt to make it fit the rest of the data #### 
@@ -35,14 +35,17 @@ load_midlands <- function(midlands)    {
                   moved_to = NA) %>% 
     
     # drop rows with no observations
-    dplyr::filter(!is.na(mite_count))
+    dplyr::filter(!is.na(mite_count)) %>% 
   
     # reorder columns so we can rowbind with mites data
-    midlands_mites <- midlands_mites[,c("beekeeper", "apiary", "date", "hive", "mite_count", "treatment", "moved_to")]
+    dplyr::select(beekeeper, apiary, date, hive, mite_count, treatment, moved_to)
   
 }
  
 midlands_mites <- load_midlands(midlands)
+
+
+#### Step 2: load BeeSmart / Rae file, clean up some things #### 
 
 load_mites <- function(mite_data)    {
   
@@ -60,6 +63,9 @@ load_mites <- function(mite_data)    {
 }   
     
 mites <- load_mites(mite_data)
+
+
+#### Step 3: load Barries file, clean up some things #### 
 
 load_barries <- function(barries) {
   
@@ -87,6 +93,45 @@ load_barries <- function(barries) {
 }
 
 barries_mites <- load_barries(barries)
+
+
+#### Step 4: load Hantz Honey data, clean up and reshape ####
+
+load_hantz <- function(hantz)    {
+
+  hantz_mites <- readxl::read_xlsx(hantz) %>%
+
+    # clean and autoformat column names, so they are standardised across files
+    janitor::clean_names() %>%
+    dplyr::mutate(longitude = as.numeric(sub(".*,", "", gps_co_ord_site)),
+                  latitude = as.numeric(sub(",.*", "", gps_co_ord_site))) %>%
+    
+    # drop superfluous columns
+    dplyr::select(!gps_co_ord_site) %>%
+
+    # reshape to fit with the mite data format
+    pivot_longer(cols = 6:15, names_to = "hive", values_to = "mite_count") %>%
+
+    # add beekeeper column to allow concatenation with other data
+    dplyr::mutate(beekeeper = "Hantz Honey",
+                  treatment = "Bayvarol",
+                  moved_to = NA) %>%
+    
+    # drop rows with no observations
+    dplyr::filter(!is.na(mite_count)) %>%
+    
+    # Add Year + Month columns for later aggregation
+    dplyr::mutate(month = format(date, "%m"),
+                  year = format(date, "%Y")) %>% 
+
+    # rename columns to match other mite data + reorder
+    dplyr::select(beekeeper, apiary = area, date, date, mite_count, treatment, moved_to, month, year, latitude, longitude)
+
+}
+
+hantz_mites <- load_hantz(hantz)
+
+#### Step 5: load apiaries + clean up some things #### 
 
 load_apiaries <- function(mite_data) {
   apiaries <- readxl::read_xlsx(mite_data, sheet = "Apiaries") %>% 
@@ -116,16 +161,22 @@ load_apiaries_barries <- function(barries) {
     
 }
 
-apiaries_barries <- load_apiaries_barries(barries)
+apiaries <- dplyr::bind_rows(apiaries, load_apiaries_barries(barries))
 
-apiaries <- dplyr::bind_rows(apiaries, apiaries_barries)
+
+#### Step 6: merge all the different mite datasets and apiary data #### 
+
 mites <- dplyr::bind_rows(mites, midlands_mites, barries_mites)%>% 
+  
   # Add Year + Month columns for later aggregation
   dplyr::mutate(month = format(date, "%m"),
                 year = format(date, "%Y"))
 
 mites_location <- dplyr::left_join(mites, apiaries, by = c("beekeeper", "apiary")) %>% 
+  
   dplyr::filter(!is.na(longitude)) %>% 
-  dplyr::filter(!is.na(date))
+  dplyr::filter(!is.na(date)) %>% 
+  
+  dplyr::bind_rows(hantz_mites)
 
 write.csv(mites_location, "mite_data_mite_monitor13July2021.csv")

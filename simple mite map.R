@@ -1,10 +1,6 @@
+library(tidyverse)
 library(viridis)
 library(sf)
-library(ggplot2)
-library(tmap)
-library(tmaptools)
-library(leaflet)
-library(dplyr)
 library(rgeos)
 library(maptools)
 library(rgdal)
@@ -22,9 +18,7 @@ ggplot() +
 
 # load mite data from mite data wrangling output file
 mites <- readr::read_csv("mite_data_mite_monitor13July2021.csv") %>% 
-  dplyr::select(!X1)
-
-mites <- mites[,c("longitude", "latitude", "beekeeper", "apiary", "date", "year", "month", "hive", "mite_count", "treatment", "moved_to")]
+  dplyr::select(longitude, latitude, beekeeper, apiary, date, year, month, hive, mite_count, treatment, moved_to)
 
 # convert to spatial object with attributes
 coordinates(mites) <- ~longitude + latitude
